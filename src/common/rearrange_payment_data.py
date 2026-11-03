@@ -21,13 +21,13 @@ def find_file(candidates):
     )
 
 INPUT_FILE = find_file([
-    DATA_DIR / "excel" / "CSV入力用_ダミー.xlsx",
-    DATA_DIR / "CSV入力用_ダミー.xlsx",
-    DATA_DIR / "CSV入力用_ダミー.xlsx",
+    DATA_DIR / "excel" / "CSV入力用.xlsx",
+    DATA_DIR / "CSV入力用.xlsx",
+    DATA_DIR / "CSV入力用.xlsx",
 ])
 LEDGER_FILE = find_file([
-    DATA_DIR / "excel" / "【WLF】台帳_ダミー.xlsx",
-    DATA_DIR / "【WLF】台帳_ダミー.xlsx",
+    DATA_DIR / "excel" / "【WLF】台帳.xlsx",
+    DATA_DIR / "【WLF】台帳.xlsx",
 ])
 OUTPUT_FILE = DATA_DIR / "excel" / "コピー用_台帳列順.xlsx"
 
@@ -122,8 +122,8 @@ def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
     print(f"[完了] {input_name}: {len(matched_columns)}列 / {count}件")
 
 def main():
-    input_wb = load_workbook(INPUT_FILE, data_only=True, read_only=True)
-    ledger_wb = load_workbook(LEDGER_FILE, data_only=True, read_only=True)
+    input_wb = load_workbook(INPUT_FILE, data_only=True)
+    ledger_wb = load_workbook(LEDGER_FILE, data_only=True)
     output_wb = Workbook()
     output_wb.remove(output_wb.active)
 
