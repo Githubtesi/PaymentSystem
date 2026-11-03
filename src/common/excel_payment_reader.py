@@ -107,7 +107,13 @@ class ExcelPaymentReader:
 
 
 if __name__ == "__main__":
-    excel_path = Path("data/excel/CSV入力用_ダミー.xlsx")
+    # プロジェクトのルートフォルダを取得
+    BASE_DIR = Path(__file__).resolve().parents[2]
+
+    # Excelファイルのパス
+    # excel_path = BASE_DIR / "data" / "CSV入力用_ダミー.xlsx"
+    excel_path = Path(r'C:\Users\tesiy\PycharmProjects\PaymentSystem\data\CSV入力用 _ダミー.xlsx')
+
     reader = ExcelPaymentReader(excel_path).load()
 
     print(f"ロボペイ件数: {len(reader.robopay)}")
