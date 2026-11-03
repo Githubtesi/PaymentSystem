@@ -1,9 +1,13 @@
 """
 CSV入力用Excelを台帳の列順に並べ替え、Ctrl+C / Ctrl+V用Excelを作成する。
+電話番号は日本の番号計画に基づき市外局番を含む形式に整形する。
 配置: src/common/rearrange_payment_data.py
-依存: pip install openpyxl
+依存: pip install openpyxl phonenumbers
 """
+import re
 from pathlib import Path
+import phonenumbers
+from phonenumbers import PhoneNumberFormat
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -16,8 +20,8 @@ def find_file(candidates):
         if path.exists():
             return path
     raise FileNotFoundError(
-        "対象Excelが見つかりません。確認したパス:\n"
-        + "\n".join(str(path) for path in candidates)
+        "対象Excelが見つかりません。確認したパス:\\n"
+        + "\\n".join(str(path) for path in candidates)
     )
 
 INPUT_FILE = find_file([
@@ -48,6 +52,38 @@ DATA_START_ROW = 2
 
 def header(value):
     return str(value).strip() if value is not None else ""
+
+def format_japanese_phone(value):
+    """日本の電話番号を市外局番/携帯番号に応じたハイフン形式へ整形。"""
+    if value is None or isinstance(value, bool):
+        return value
+
+    original = str(value).strip()
+    if not original:
+        return value
+
+    # Excel数値セルなどで先頭の0が落ちている場合、桁数から補完する
+    digits = re.sub(r"\\D", "", original)
+    if original.startswith("+81"):
+        digits = "0" + digits[2:] if digits.startswith("81") else digits
+    elif original.startswith("81") and len(digits) in (11, 12):
+        digits = "0" + digits[2:]
+    elif len(digits) == 10 and not digits.startswith("0"):
+        # 0が欠落した携帯番号 (90/80/70始まりなど)
+        digits = "0" + digits
+    elif len(digits) == 9 and not digits.startswith("0"):
+        # 0が欠落した固定電話番号
+        digits = "0" + digits
+
+    try:
+        parsed = phonenumbers.parse(digits, "JP")
+        if phonenumbers.is_possible_number(parsed):
+            return phonenumbers.format_number(parsed, PhoneNumberFormat.NATIONAL)
+    except phonenumbers.NumberParseException:
+        pass
+
+    # 解析できない値は破壊せず、入力値のまま返す
+    return original
 
 def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
     input_columns = {}
@@ -98,10 +134,11 @@ def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
                for col in range(1, input_ws.max_column + 1)):
             continue
         count += 1
-        for out_col, (_, source_col) in enumerate(matched_columns, start=1):
-            output_ws.cell(
-                count + 1, out_col, input_ws.cell(source_row, source_col).value
-            )
+        for out_col, (output_header, source_col) in enumerate(matched_columns, start=1):
+            value = input_ws.cell(source_row, source_col).value
+            if "電話" in output_header or "電話" in header(input_ws.cell(INPUT_HEADER_ROW, source_col).value):
+                value = format_japanese_phone(value)
+            output_ws.cell(count + 1, out_col, value)
 
     output_ws.freeze_panes = "A2"
     output_ws.auto_filter.ref = output_ws.dimensions
@@ -133,7 +170,7 @@ def main():
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     output_wb.save(OUTPUT_FILE)
-    print(f"\n出力ファイル: {OUTPUT_FILE}")
+    print(f"\\n出力ファイル: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
