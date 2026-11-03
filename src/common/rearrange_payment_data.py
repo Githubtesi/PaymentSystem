@@ -117,6 +117,14 @@ def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
         print(f"[警告] {input_name}: 対応列がありません")
         return
 
+    # アクアゲイツは指定されたコピー貼り付け順を優先する
+    if input_name == "アクアゲイツall":
+        preferred_order = ["金額", "通貨", "カード", "カード名義", "カード番号", "有効期限"]
+        order_index = {name: index for index, name in enumerate(preferred_order)}
+        matched_columns.sort(
+            key=lambda item: order_index.get(item[0], len(preferred_order))
+        )
+
     output_name = input_name.replace("all", "コピー用")[:31]
     output_ws = output_wb.create_sheet(output_name)
 
