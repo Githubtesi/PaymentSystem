@@ -63,7 +63,7 @@ def format_japanese_phone(value):
         return value
 
     # Excel数値セルなどで先頭の0が落ちている場合、桁数から補完する
-    digits = re.sub(r"\\D", "", original)
+    digits = re.sub(r"\D", "", original)
     if original.startswith("+81"):
         digits = "0" + digits[2:] if digits.startswith("81") else digits
     elif original.startswith("81") and len(digits) in (11, 12):
