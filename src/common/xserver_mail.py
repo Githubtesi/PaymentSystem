@@ -16,9 +16,12 @@ from email.message import Message
 from email.utils import parsedate_to_datetime
 from typing import Optional
 
+from dotenv import load_dotenv
+
 IMAP_PORT = 993
 DEFAULT_OTP_PATTERN = r"(?<!\\d)(\\d{6})(?!\\d)"
 
+load_dotenv()
 
 class OTPNotFoundError(RuntimeError):
     """No recent matching OTP email was found."""
@@ -77,6 +80,7 @@ def get_latest_otp(
     host = os.getenv("XSERVER_IMAP_HOST")
     address = os.getenv("XSERVER_EMAIL_ADDRESS")
     password = os.getenv("XSERVER_EMAIL_PASSWORD")
+    print('host:', host,'address:', address,'password:', password)
     if not all((host, address, password)):
         raise RuntimeError(
             "Set XSERVER_IMAP_HOST, XSERVER_EMAIL_ADDRESS, "

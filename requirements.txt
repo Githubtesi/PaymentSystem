@@ -2,3 +2,5 @@
 SQLAlchemy==2.0.48
 typing_extensions==4.15.0
 pytest
+
+python-dotenv
