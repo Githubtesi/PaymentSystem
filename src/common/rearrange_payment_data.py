@@ -1,13 +1,9 @@
 """
 CSV入力用Excelを台帳の列順に並べ替え、Ctrl+C / Ctrl+V用Excelを作成する。
-電話番号は日本の番号計画に基づき市外局番を含む形式に整形する。
 配置: src/common/rearrange_payment_data.py
-依存: pip install openpyxl phonenumbers
+依存: pip install openpyxl
 """
-import re
 from pathlib import Path
-import phonenumbers
-from phonenumbers import PhoneNumberFormat
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -20,18 +16,18 @@ def find_file(candidates):
         if path.exists():
             return path
     raise FileNotFoundError(
-        "対象Excelが見つかりません。確認したパス:\\n"
-        + "\\n".join(str(path) for path in candidates)
+        "対象Excelが見つかりません。確認したパス:\n"
+        + "\n".join(str(path) for path in candidates)
     )
 
 INPUT_FILE = find_file([
     DATA_DIR / "excel" / "CSV入力用_ダミー.xlsx",
     DATA_DIR / "CSV入力用_ダミー.xlsx",
-    DATA_DIR / "CSV入力用 _ダミー.xlsx",
+    DATA_DIR / "CSV入力用_ダミー.xlsx",
 ])
 LEDGER_FILE = find_file([
-    DATA_DIR / "excel" / "台帳_ダミー.xlsx",
-    DATA_DIR / "台帳_ダミー.xlsx",
+    DATA_DIR / "excel" / "【WLF】台帳_ダミー.xlsx",
+    DATA_DIR / "【WLF】台帳_ダミー.xlsx",
 ])
 OUTPUT_FILE = DATA_DIR / "excel" / "コピー用_台帳列順.xlsx"
 
@@ -52,38 +48,6 @@ DATA_START_ROW = 2
 
 def header(value):
     return str(value).strip() if value is not None else ""
-
-def format_japanese_phone(value):
-    """日本の電話番号を市外局番/携帯番号に応じたハイフン形式へ整形。"""
-    if value is None or isinstance(value, bool):
-        return value
-
-    original = str(value).strip()
-    if not original:
-        return value
-
-    # Excel数値セルなどで先頭の0が落ちている場合、桁数から補完する
-    digits = re.sub(r"\D", "", original)
-    if original.startswith("+81"):
-        digits = "0" + digits[2:] if digits.startswith("81") else digits
-    elif original.startswith("81") and len(digits) in (11, 12):
-        digits = "0" + digits[2:]
-    elif len(digits) == 10 and not digits.startswith("0"):
-        # 0が欠落した携帯番号 (90/80/70始まりなど)
-        digits = "0" + digits
-    elif len(digits) == 9 and not digits.startswith("0"):
-        # 0が欠落した固定電話番号
-        digits = "0" + digits
-
-    try:
-        parsed = phonenumbers.parse(digits, "JP")
-        if phonenumbers.is_possible_number(parsed):
-            return phonenumbers.format_number(parsed, PhoneNumberFormat.NATIONAL)
-    except phonenumbers.NumberParseException:
-        pass
-
-    # 解析できない値は破壊せず、入力値のまま返す
-    return original
 
 def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
     input_columns = {}
@@ -117,14 +81,6 @@ def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
         print(f"[警告] {input_name}: 対応列がありません")
         return
 
-    # アクアゲイツは指定されたコピー貼り付け順を優先する
-    if input_name == "アクアゲイツall":
-        preferred_order = ["金額", "通貨", "カード", "カード名義", "カード番号", "有効期限"]
-        order_index = {name: index for index, name in enumerate(preferred_order)}
-        matched_columns.sort(
-            key=lambda item: order_index.get(item[0], len(preferred_order))
-        )
-
     output_name = input_name.replace("all", "コピー用")[:31]
     output_ws = output_wb.create_sheet(output_name)
 
@@ -142,19 +98,18 @@ def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
                for col in range(1, input_ws.max_column + 1)):
             continue
         count += 1
-        for out_col, (output_header, source_col) in enumerate(matched_columns, start=1):
-            value = input_ws.cell(source_row, source_col).value
-            if "電話" in output_header or "電話" in header(input_ws.cell(INPUT_HEADER_ROW, source_col).value):
-                value = format_japanese_phone(value)
-            output_ws.cell(count + 1, out_col, value)
+        for out_col, (_, source_col) in enumerate(matched_columns, start=1):
+            output_ws.cell(
+                count + 1, out_col, input_ws.cell(source_row, source_col).value
+            )
 
     output_ws.freeze_panes = "A2"
     output_ws.auto_filter.ref = output_ws.dimensions
     print(f"[完了] {input_name}: {len(matched_columns)}列 / {count}件")
 
 def main():
-    input_wb = load_workbook(INPUT_FILE, data_only=True)
-    ledger_wb = load_workbook(LEDGER_FILE, data_only=True)
+    input_wb = load_workbook(INPUT_FILE, data_only=True, read_only=True)
+    ledger_wb = load_workbook(LEDGER_FILE, data_only=True, read_only=True)
     output_wb = Workbook()
     output_wb.remove(output_wb.active)
 
@@ -178,7 +133,7 @@ def main():
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     output_wb.save(OUTPUT_FILE)
-    print(f"\\n出力ファイル: {OUTPUT_FILE}")
+    print(f"\n出力ファイル: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
