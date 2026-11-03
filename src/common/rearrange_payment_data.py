@@ -81,6 +81,20 @@ def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
         print(f"[警告] {input_name}: 対応列がありません")
         return
 
+    # アクアゲイツコピー用は指定された列順を優先する
+    if input_name == "アクアゲイツall":
+        preferred_order = [
+            "決済ID", "サイト名", "注文ID", "ユーザーID", "メールアドレス", "電話番号",
+            "氏名（姓）", "氏名（名）", "郵便番号", "住所（都道府県）", "住所（市区町村）",
+            "住所（地域・番地）", "住所（その他）", "商品名", "テスト", "与信", "決済",
+            "返金", "通知", "定期", "定期（自動）", "与信日時", "決済日時", "返金日",
+            "金額", "通貨", "カード", "カード名義", "カード番号", "有効期限",
+        ]
+        order_index = {name: index for index, name in enumerate(preferred_order)}
+        matched_columns.sort(
+            key=lambda item: order_index.get(item[0], len(preferred_order))
+        )
+
     output_name = input_name.replace("all", "コピー用")[:31]
     output_ws = output_wb.create_sheet(output_name)
 
