@@ -108,8 +108,8 @@ def create_copy_sheet(output_wb, input_ws, ledger_ws, input_name):
     print(f"[完了] {input_name}: {len(matched_columns)}列 / {count}件")
 
 def main():
-    input_wb = load_workbook(INPUT_FILE, data_only=True, read_only=True)
-    ledger_wb = load_workbook(LEDGER_FILE, data_only=True, read_only=True)
+    input_wb = load_workbook(INPUT_FILE, data_only=True)
+    ledger_wb = load_workbook(LEDGER_FILE, data_only=True)
     output_wb = Workbook()
     output_wb.remove(output_wb.active)
 
