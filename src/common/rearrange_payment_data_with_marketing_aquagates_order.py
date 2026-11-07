@@ -111,7 +111,7 @@ def build_marketing_index(marketing_wb):
     """照合indexを作成。優先順位は電話番号→メール→氏名。
     1つのキーに複数の候補があれば先に登録されたシート/行を保持。
     """
-    index = {"phone": {}, "email": {}, "name": {}}
+    index = {"phone": {}, "email": {}, "name": {}, "phone_application": {"phone": {}, "email": {}, "name": {}}}
     for sheet_name, line_header, category, level, header_row, data_start in MARKETING_SHEETS:
         if sheet_name not in marketing_wb.sheetnames:
             print(f"[集客照合スキップ] シートなし: {sheet_name}")
@@ -166,6 +166,9 @@ def build_marketing_index(marketing_wb):
                     keys.append(("name", name))
             for kind, key in keys:
                 index[kind].setdefault(key, entry)
+                # 「電話申込着金」シートに存在するかの判定用index
+                if sheet_name == "電話申込着金":
+                    index["phone_application"][kind].setdefault(key, entry)
     return index
 
 
@@ -175,6 +178,17 @@ def lookup_marketing(index, phone=None, email=None, name=None):
         if key and key in index[kind]:
             return index[kind][key]
     return {"line_name": "", "category": "", "level": "", "lp_name": "", "sheet": ""}
+
+
+def is_phone_application(index, phone=None, email=None, name=None):
+    """電話申込着金シートに照合キーが存在する場合はTrue。"""
+    phone_index = index.get("phone_application", {})
+    keys = [
+        ("phone", norm_phone(phone)),
+        ("email", norm_text(email)),
+        ("name", norm_text(name)),
+    ]
+    return any(key and key in phone_index.get(kind, {}) for kind, key in keys)
 
 
 def get_input_rows(ws):
@@ -234,7 +248,7 @@ def build_output_sheet(output_wb, input_ws, ledger_ws, input_sheet_name, marketi
     extra_cols = {}
     if input_sheet_name == "ロボペイall":
         start_col = len(matched) + 1
-        extra_cols = {"BE/FE": start_col + 1, "LINE名": start_col + 7, "L1/L2": start_col + 8, "LP名": start_col + 9}
+        extra_cols = {"BE/FE": start_col + 1, "通常/電話": start_col + 2, "LINE名": start_col + 7, "L1/L2": start_col + 8, "LP名": start_col + 9}
         for label, col in extra_cols.items():
             c = out_ws.cell(1, col, label)
             c.font, c.fill = style_header, fill_header
@@ -253,6 +267,8 @@ def build_output_sheet(output_wb, input_ws, ledger_ws, input_sheet_name, marketi
             name = source.get("名前(日本語)") or source.get("名前") or source.get("姓")
             info = lookup_marketing(marketing_index, phone, email, name)
             out_ws.cell(out_row, extra_cols["BE/FE"], info["category"])
+            phone_application = is_phone_application(marketing_index, phone, email, name)
+            out_ws.cell(out_row, extra_cols["通常/電話"], "電話" if phone_application else "通常")
             out_ws.cell(out_row, extra_cols["LINE名"], info["line_name"])
             out_ws.cell(out_row, extra_cols["L1/L2"], info["level"])
             out_ws.cell(out_row, extra_cols["LP名"], info["lp_name"])
