@@ -1,4 +1,4 @@
-"""決済入力データを台帳列順に並べ替え、集客集計からLINE名/BE-FE/L1-L2を照合して付加する。
+"""決済入力データを台帳列順に並べ替え、集客集計からLINE名/BE-FE/L1-L2/LP名を照合して付加する。
 
 配置例 (同じフォルダ内):
   CSV入力用 _ダミー(1).xlsx
@@ -122,11 +122,14 @@ def build_marketing_index(marketing_wb):
         email_col = choose_header(headers, ["Eメール", "メールアドレス", "MAIL", "メール", "Email"])
         name_col = choose_header(headers, ["名前(日本語)", "本名", "氏名", "名前", "回答者名", "LINE登録名", "表示名"])
         line_col = headers.get(line_header)
+        lp_col = headers.get("LP名")
 
         # CS購入者情報は、データ上に明確な列見出しがない形式のため列位置を指定。
         if sheet_name == "CS購入者情報":
             # 6列目=LINE名、7列目=本名、8列目=メールアドレス、10列目=電話番号
             line_col, name_col, email_col, phone_col = 6, 7, 8, 10
+            # CS購入者情報のLP名は30列目
+            lp_col = 30
 
         # 電話申込着金は TEL/MAIL の見出しが特殊、CS購入者情報は電話/メール列を併用。
         if sheet_name == "電話申込着金":
@@ -145,7 +148,9 @@ def build_marketing_index(marketing_wb):
             line_name = ws.cell(row, line_col).value
             if line_name is None or not str(line_name).strip():
                 continue
-            entry = {"line_name": str(line_name).strip(), "category": category, "level": level, "sheet": sheet_name}
+            lp_name = ws.cell(row, lp_col).value if lp_col else ""
+            lp_name = "" if lp_name is None or norm_header(lp_name) == "LP名" else str(lp_name).strip()
+            entry = {"line_name": str(line_name).strip(), "category": category, "level": level, "lp_name": lp_name, "sheet": sheet_name}
             keys = []
             if phone_col:
                 phone = norm_phone(ws.cell(row, phone_col).value)
@@ -169,7 +174,7 @@ def lookup_marketing(index, phone=None, email=None, name=None):
     for kind, key in keys:
         if key and key in index[kind]:
             return index[kind][key]
-    return {"line_name": "", "category": "", "level": "", "sheet": ""}
+    return {"line_name": "", "category": "", "level": "", "lp_name": "", "sheet": ""}
 
 
 def get_input_rows(ws):
@@ -225,11 +230,11 @@ def build_output_sheet(output_wb, input_ws, ledger_ws, input_sheet_name, marketi
         c.font, c.fill = style_header, fill_header
         out_ws.column_dimensions[get_column_letter(out_col)].width = max(12, min(24, len(header) * 2 + 2))
 
-    # ロボペイ用の追加列: 1空欄、BE/FE、5空欄、LINE名、L1/L2
+    # ロボペイ用の追加列: 1空欄、BE/FE、5空欄、LINE名、L1/L2、LP名
     extra_cols = {}
     if input_sheet_name == "ロボペイall":
         start_col = len(matched) + 1
-        extra_cols = {"BE/FE": start_col + 1, "LINE名": start_col + 7, "L1/L2": start_col + 8}
+        extra_cols = {"BE/FE": start_col + 1, "LINE名": start_col + 7, "L1/L2": start_col + 8, "LP名": start_col + 9}
         for label, col in extra_cols.items():
             c = out_ws.cell(1, col, label)
             c.font, c.fill = style_header, fill_header
@@ -250,6 +255,7 @@ def build_output_sheet(output_wb, input_ws, ledger_ws, input_sheet_name, marketi
             out_ws.cell(out_row, extra_cols["BE/FE"], info["category"])
             out_ws.cell(out_row, extra_cols["LINE名"], info["line_name"])
             out_ws.cell(out_row, extra_cols["L1/L2"], info["level"])
+            out_ws.cell(out_row, extra_cols["LP名"], info["lp_name"])
 
     out_ws.freeze_panes = "A2"
     out_ws.auto_filter.ref = out_ws.dimensions
